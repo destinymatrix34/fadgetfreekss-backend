@@ -27,7 +27,7 @@ mongoose
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "https://gadgetfreeks.us";
 
 // ─── Security headers ─────────────────────────────────────────────────────────
 app.use(helmet());
