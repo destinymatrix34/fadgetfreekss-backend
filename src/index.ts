@@ -18,12 +18,28 @@ if (!process.env.API_SECRET_KEY || process.env.API_SECRET_KEY === "CHANGE_ME_USE
   process.exit(1);
 }
 
-// ─── MongoDB Connection ──────────────────────────────────────────────────────
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/gadgetfreeks";
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => console.log("🌱 Connected to MongoDB successfully (gadgetfreeks)"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+// ─── MongoDB Connection (Serverless-safe with connection caching) ────────────
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.error("❌ FATAL: MONGODB_URI environment variable is not set!");
+  process.exit(1);
+}
+
+// Cache the connection promise so serverless warm instances reuse the connection
+let cachedConnection: typeof mongoose | null = null;
+
+async function connectDB(): Promise<typeof mongoose> {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
+    return cachedConnection;
+  }
+  console.log("🔌 Connecting to MongoDB...");
+  cachedConnection = await mongoose.connect(MONGODB_URI as string, {
+    serverSelectionTimeoutMS: 8000, // Fail fast (under Vercel's 10s limit)
+    socketTimeoutMS: 8000,
+  });
+  console.log("🌱 Connected to MongoDB successfully (gadgetfreeks)");
+  return cachedConnection;
+}
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -53,6 +69,17 @@ app.use((req, _res, next) => {
 // ─── Body parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// ─── DB connection middleware — ensures MongoDB is connected before any route ──
+app.use(async (_req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+    res.status(503).json({ error: "Database unavailable. Please try again later." });
+  }
+});
 
 // ─── Dynamic Public Sitemap (Unprotected) ────────────────────────────────────
 app.use(sitemapRouter);
