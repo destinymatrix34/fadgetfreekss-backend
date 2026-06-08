@@ -79,7 +79,7 @@ app.use((_req, res) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\n✅  GadgetFreeks backend running on http://localhost:${PORT}`);
+
   console.log(`   CORS allowed origin: ${FRONTEND_ORIGIN}`);
   console.log(`   Endpoints:`);
   console.log(`     GET  /api/blogs        — published blog posts (public)`);
